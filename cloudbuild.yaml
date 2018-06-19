@@ -1,0 +1,52 @@
+#
+# cloudbuild.yaml for testing and deploying susom/vertx-base repo
+#
+
+# Google Cloud KMS KeyRing and CryptoKey are created for encrypting credentials of SourceClear, Docker Store, Proxy and Maven Repo
+# Container Builder service account is granted access to the CryptoKey.
+# Run the following command in shell or terminal window to encrpt SourceClear, Docker Store, Proxy and Maven Repo credentials
+# MY_SECRET=<enter-your-credential>
+# echo -n $MY_SECRET | gcloud kms encrypt --plaintext-file=- --ciphertext-file=- \
+# --location=global --keyring=[KEYRING-NAME] --key=[KEY-NAME] | base64
+
+# See below link for more information on using Google Cloud KMS:
+# https://cloud.google.com/container-builder/docs/securing-builds/use-encrypted-secrets-credentials#encrypting_an_environment_variable_using_the_cryptokey
+
+secrets:
+- kmsKeyName: 'projects/som-rit-infrastructure-dev/locations/global/keyRings/susom-encryption-keyring/cryptoKeys/susom-encryption-key'
+  secretEnv:
+    #SRCCLR_API_TOKEN: CiQAZ2BXpn/Kh1BhBPJTo04sTqH7HvWveMKq7XWanLFLLlBqdlwSxgMA+/0rWrQhkX0mwX+/XXqIGA7ltoW3+8hGID8fCpX3RPHzWzKtepUSyYoB0aDnTox7D3HFx4jZxl5XwpBznP4dxuovhSiwwT+HPRAvoxDMivrPYltPXmDkSE6VTCo2weFw9mQeyi6VIaha/lzDVQIsmZDIMbq8l3fLA6GxcJKjK137DOuNW1pnCg7sEJq7IKR7j4iMyKLDvplJUBb6vIXGMBunj8gNUXLsC0uunol2XmRrDSHlQAGxmz608CUiqygieygLW5/SIV4ApM6XweN74XzmpsZk+DW1HmRxvx/J1q0aVCYML/tanyxI/KpqhOisoEPfJLnRsJaEDORQqLC3Sb9ZTUSj0PVF1CHV6SjggEcB/UyGAqmAE5Hd4wvj2GhE0EjPApaUPHU5KrvTv6xWOOfSTUO5z5jZdebPHxDvP4UMgWyhIFgRwqptdAGC3hVy02fLxarQABFAKBL23+UZZKDloE13qmcNtak9EqfG7HbJbfi8NhOSSl5w/f6U+VPiLjkFHrn8Sjst9L/nhlFn2E6OqoOYiHdJTW4uG9U7QBVHZw1n9xSuB9SiHZYYB2ttXX3TcthyzKddxs0w03AwXS04rwaL
+    PROXY_USERNAME: CiQAZ2BXppRlBpo/KJQP2OArNgQRTPlHKS6TnDZyuG0JjEEVmsgSNAD7/StamUjUnpRLZFIpGdkyiFKw8u6VuopvGMQ2cxTEmktq1bklDP+MPb0hlL8nYR4Kl80=
+    PROXY_PASSWORD: CiQAZ2BXpj/uiS68e+Uu88KHLssDMwcLFYnGtrRcKuEeTY40ka8SNAD7/StauUD9pMiYM8YpO6NXMBYz+vmys9aISw39VoMb7vh9xgkx1rGQCb/HS0KEDscHd5o=
+    MAVEN_USERNAME: CiQAZ2BXpkX1G4x18UcoJTjKHJPWt6V4DwOz67bxlP4THd079BwSLgD7/StaBlfl7VzpdCKgM/CdmU4Omx6dgkijsIAFZ5NpaMk7Z7Ng1N50r5rDbH0=
+    MAVEN_PASSWORD: CiQAZ2BXpoY09g5dcRr1Y0MXn0ABS6VOvYjSBjUc9PFkzgiv9rcSMQD7/StagQLdyMqbQZg1t44sLFHVclMRJ/FahpHYzjHBCWL16NmlinacLvnEIOwpGHo=
+
+# Build Steps:
+steps:
+
+#
+# Steps for testing and deploying susom/vertx-base
+#
+
+# Copying customized build files
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args: ['-c', "cp ./pom_proxy.xml ./pom.xml"]
+
+# Testing and deploying using APP deploy server
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  #args: ['-c', "docker run -e PROXY_USERNAME -e PROXY_PASSWORD -e MAVEN_USERNAME -e MAVEN_PASSWORD \
+  #       -e MAVEN_ID -e PROXY_HOST -e MAVEN_HOST -e MAVEN_PORT -e SRCCLR_API_TOKEN --name $$APP_DEPLOY_SERVER \
+  #       -v /workspace:/workspace --entrypoint 'bash' $$APP_DEPLOY_IMAGE \
+  #       -c 'apt-get update; apt-get install curl -y; cd /workspace; cp settings.xml ~/.m2/settings.xml; \
+  #       mvn -e test deploy; curl -sSL https://download.sourceclear.com/ci.sh | sh;'"]
+  args: ['-c', "docker run -e PROXY_USERNAME -e PROXY_PASSWORD -e MAVEN_USERNAME -e MAVEN_PASSWORD \
+         -e MAVEN_ID -e PROXY_HOST -e MAVEN_HOST -e MAVEN_PORT --name $$APP_DEPLOY_SERVER \
+         -v /workspace:/workspace --entrypoint 'bash' $$APP_DEPLOY_IMAGE \
+         -c 'sddssd; apt-get update; apt-get install curl -y; cd /workspace; cp settings.xml ~/.m2/settings.xml; \
+         mvn -e test deploy'"]
+  env: ['APP_DEPLOY_SERVER=oracledb-app-deploy-server', 'APP_DEPLOY_IMAGE=gcr.io/cloud-builders/mvn',
+        'MAVEN_ID=nexus', 'PROXY_HOST=35.237.190.202', 'MAVEN_HOST=202.65.140.146', 'MAVEN_PORT=8081']
+  secretEnv: ['PROXY_USERNAME', 'PROXY_PASSWORD', 'MAVEN_USERNAME', 'MAVEN_PASSWORD']
+  #secretEnv: ['SRCCLR_API_TOKEN', 'PROXY_USERNAME', 'PROXY_PASSWORD', 'MAVEN_USERNAME', 'MAVEN_PASSWORD']
